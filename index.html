@@ -1,0 +1,703 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Matcha Catch — Boba Drop</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,500&family=Nunito:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ceremony: #35492b;
+    --ceremony-2: #23331a;
+    --matcha-deep: #4d6b3f;
+    --matcha: #7c9a5c;
+    --matcha-light: #b7cf94;
+    --paper: #f2ead5;
+    --paper-2: #e8dcb8;
+    --foam: #fffaf0;
+    --clay: #b55a34;
+    --clay-deep: #8a4126;
+    --ink: #2c3320;
+    --danger: #a83f2b;
+    --gold: #d1a13c;
+  }
+  *{ box-sizing: border-box; }
+  html,body{
+    margin:0; padding:0; height:100%;
+    background:
+      radial-gradient(ellipse 900px 500px at 50% -10%, #4a6339 0%, transparent 60%),
+      var(--ceremony-2);
+    font-family: 'Nunito', sans-serif;
+    color: var(--ink);
+    overflow: hidden;
+    -webkit-tap-highlight-color: transparent;
+  }
+  h1,h2,.display{ font-family: 'Fraunces', serif; }
+
+  #stage{
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  #wrap{
+    position: relative;
+    width: min(480px, 100vw);
+    height: min(760px, 100vh);
+    background: var(--paper);
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 40px 80px -24px rgba(0,0,0,0.55), 0 0 0 1px rgba(124,154,92,0.2), inset 0 0 0 6px rgba(255,255,255,0.35);
+  }
+  canvas{
+    display:block;
+    width:100%;
+    height:100%;
+    touch-action: none;
+  }
+
+  /* ---------- HUD ---------- */
+  #hud{
+    position:absolute; top:0; left:0; right:0;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding: 16px 14px;
+    pointer-events:none;
+    z-index: 5;
+  }
+  .tag{
+    position: relative;
+    background: var(--foam);
+    padding: 8px 18px;
+    font-weight: 800;
+    color: var(--ceremony);
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    box-shadow: 0 3px 0 rgba(44,51,32,0.12), 0 6px 14px rgba(44,51,32,0.18);
+    clip-path: polygon(2% 12%, 22% 0%, 48% 6%, 74% 0%, 98% 10%, 100% 45%, 96% 88%, 78% 100%, 50% 94%, 24% 100%, 0% 90%, 3% 50%);
+    transform: rotate(-2deg);
+  }
+  .tag.right{ transform: rotate(2deg); }
+  .tag .num{
+    font-family: 'Fraunces', serif;
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--clay-deep);
+  }
+  #comboTag{
+    position:absolute; top: 60px; left: 50%;
+    transform: translateX(-50%) scale(0.7);
+    font-family:'Fraunces', serif;
+    font-weight: 700;
+    font-style: italic;
+    font-size: 20px;
+    color: var(--gold);
+    text-shadow: 0 2px 6px rgba(0,0,0,0.35), 0 0 14px rgba(209,161,60,0.5);
+    opacity: 0;
+    pointer-events:none;
+    z-index: 6;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+  }
+  #comboTag.show{ opacity: 1; transform: translateX(-50%) scale(1); }
+
+  #lives{ display:flex; gap:5px; align-items:center; }
+  .leaf{ font-size: 17px; filter: drop-shadow(0 1px 1px rgba(0,0,0,0.2)); transition: opacity 0.2s, transform 0.2s; }
+  .leaf.lost{ opacity: 0.15; transform: scale(0.8) rotate(-15deg); }
+
+  /* ---------- Whisk signature element ---------- */
+  .chasen{
+    position: absolute;
+    width: 46px; height: 46px;
+    pointer-events: none;
+  }
+  .chasen svg{ width:100%; height:100%; animation: whiskBob 2.6s ease-in-out infinite; transform-origin: 50% 85%; }
+  @keyframes whiskBob{
+    0%,100%{ transform: rotate(-6deg); }
+    50%{ transform: rotate(6deg); }
+  }
+
+  /* ---------- Overlay ---------- */
+  #overlay{
+    position:absolute; inset:0;
+    display:flex; flex-direction:column; align-items:center; justify-content:center;
+    text-align:center;
+    background:
+      radial-gradient(ellipse 500px 300px at 50% 20%, rgba(124,154,92,0.35), transparent 60%),
+      linear-gradient(180deg, var(--ceremony) 0%, var(--ceremony-2) 100%);
+    color: var(--paper);
+    padding: 32px;
+    z-index: 10;
+  }
+  #overlay.hidden{ display:none; }
+  .overlay-card{
+    max-width: 340px;
+    display:flex; flex-direction:column; align-items:center;
+  }
+  #overlay h1{
+    font-size: 40px;
+    font-weight: 600;
+    margin: 4px 0 2px;
+    letter-spacing: 0.01em;
+    color: var(--foam);
+  }
+  #overlay .kicker{
+    font-size: 11px;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--matcha-light);
+    font-weight: 700;
+    margin-bottom: 2px;
+  }
+  #overlay .sub{
+    font-size: 14px;
+    opacity: 0.82;
+    margin: 10px 0 22px;
+    max-width: 300px;
+    line-height: 1.55;
+  }
+  .divider{
+    width: 60px; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--matcha-light), transparent);
+    margin: 14px 0;
+  }
+  #overlay .legend{
+    display:grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 14px 10px;
+    margin-bottom: 26px;
+    font-size: 11.5px;
+  }
+  #overlay .legend div{ display:flex; flex-direction:column; align-items:center; gap:5px; }
+  #overlay .legend span.sw{ font-size:24px; }
+  #overlay .legend .bad-label{ color: #e5a290; }
+  #overlay .legend .good-label{ color: var(--matcha-light); }
+
+  #startBtn, #restartBtn{
+    background: var(--clay);
+    color: var(--foam);
+    border: none;
+    padding: 14px 38px;
+    font-size: 16px;
+    font-weight: 800;
+    font-family: 'Nunito', sans-serif;
+    letter-spacing: 0.01em;
+    border-radius: 999px;
+    cursor: pointer;
+    box-shadow: 0 4px 0 var(--clay-deep), 0 10px 20px rgba(0,0,0,0.35);
+    transition: transform 0.1s ease, box-shadow 0.1s ease;
+  }
+  #startBtn:active, #restartBtn:active{
+    transform: translateY(3px);
+    box-shadow: 0 1px 0 var(--clay-deep), 0 4px 10px rgba(0,0,0,0.3);
+  }
+  #finalScoreWrap{ margin: 4px 0 20px; }
+  #finalScore{
+    font-family:'Fraunces', serif;
+    font-size: 56px;
+    font-weight: 700;
+    color: var(--foam);
+    line-height: 1;
+  }
+  #finalScoreLabel{
+    font-size: 11px;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--matcha-light);
+    margin-top: 4px;
+  }
+
+  #hint{
+    position:absolute; bottom:12px; left:0; right:0;
+    text-align:center; font-size:11px; color: var(--matcha-deep);
+    opacity:0.5; font-weight: 700; letter-spacing: 0.02em;
+    z-index:4;
+    pointer-events:none;
+  }
+  #floatWrap{ position:absolute; inset:0; pointer-events:none; z-index: 6; overflow:hidden; }
+  .float{
+    position:absolute;
+    font-family:'Fraunces', serif;
+    font-weight: 700;
+    font-size: 21px;
+    animation: floatUp 0.9s ease-out forwards;
+  }
+  @keyframes floatUp{
+    0%{ transform: translateY(0) scale(1); opacity: 1; }
+    100%{ transform: translateY(-50px) scale(1.15); opacity: 0; }
+  }
+
+  #flash{
+    position:absolute; inset:0; background: var(--danger);
+    opacity:0; pointer-events:none; z-index: 7; mix-blend-mode: multiply;
+  }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="wrap">
+    <canvas id="game"></canvas>
+    <div id="flash"></div>
+
+    <div id="hud">
+      <div class="tag">Score <span class="num" id="scoreVal">0</span></div>
+      <div class="tag right" id="lives">
+        <span class="leaf" data-i="0">🍃</span><span class="leaf" data-i="1">🍃</span><span class="leaf" data-i="2">🍃</span>
+      </div>
+    </div>
+    <div id="comboTag">Combo!</div>
+
+    <div id="floatWrap"></div>
+
+    <div id="hint">DRAG · MOUSE · ← → TO STEER</div>
+
+    <div id="overlay">
+      <div class="overlay-card">
+        <div class="chasen" style="position:static; margin-bottom:4px;">
+          <svg viewBox="0 0 60 60" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path d="M30 54 L30 30" stroke="#c9a06a" stroke-width="4" stroke-linecap="round"/>
+            <path d="M30 32 C 18 20, 12 16, 8 6" stroke="#e8d3a8" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M30 32 C 22 22, 18 14, 16 4" stroke="#e8d3a8" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M30 32 C 27 20, 26 12, 25 2" stroke="#e8d3a8" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M30 32 C 33 20, 34 12, 35 2" stroke="#e8d3a8" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M30 32 C 38 22, 42 14, 44 4" stroke="#e8d3a8" stroke-width="1.6" stroke-linecap="round"/>
+            <path d="M30 32 C 42 20, 48 16, 52 6" stroke="#e8d3a8" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div class="kicker">A Small Ceremony</div>
+        <h1>Matcha Catch</h1>
+        <div class="sub">Whisk your cup beneath the falling sky. Take in the boba and its sweet companions — refuse everything else.</div>
+        <div class="legend">
+          <div><span class="sw">🧋</span><span class="good-label">boba +1</span></div>
+          <div><span class="sw">🍓</span><span class="good-label">berry +2</span></div>
+          <div><span class="sw">🫐</span><span class="good-label">blueberry +2</span></div>
+          <div><span class="sw">💜</span><span class="good-label">lavender +3</span></div>
+          <div><span class="sw">🧀</span><span class="bad-label">cheese</span></div>
+          <div><span class="sw">🌶️</span><span class="bad-label">pepper</span></div>
+          <div><span class="sw">🍅</span><span class="bad-label">tomato</span></div>
+        </div>
+        <button id="startBtn">Start Brewing</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const wrap = document.getElementById('wrap');
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const overlay = document.getElementById('overlay');
+  const startBtn = document.getElementById('startBtn');
+  const scoreVal = document.getElementById('scoreVal');
+  const livesEls = document.querySelectorAll('#lives .leaf');
+  const floatWrap = document.getElementById('floatWrap');
+  const comboTag = document.getElementById('comboTag');
+  const flashEl = document.getElementById('flash');
+
+  let W, H, DPR;
+  function resize(){
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    const rect = wrap.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    canvas.width = W * DPR;
+    canvas.height = H * DPR;
+    ctx.setTransform(DPR,0,0,DPR,0,0);
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- Items ----------
+  const GOOD = [
+    { key:'boba', glyph:'🧋', pts:1, r:20, glow:'124,154,92' },
+    { key:'strawberry', glyph:'🍓', pts:2, r:20, glow:'124,154,92' },
+    { key:'blueberry', glyph:'🫐', pts:2, r:18, glow:'124,154,92' },
+    { key:'lavender', glyph:'💜', pts:3, r:19, glow:'124,154,92' },
+  ];
+  const BAD = [
+    { key:'cheese', glyph:'🧀', r:22, glow:'168,63,43' },
+    { key:'pepper', glyph:'🌶️', r:22, glow:'168,63,43' },
+    { key:'tomato', glyph:'🍅', r:20, glow:'168,63,43' },
+  ];
+
+  let score = 0, lives = 3, running = false, gameOver = false;
+  let items = [];
+  let particles = [];
+  let spawnTimer = 0, spawnInterval = 950;
+  let elapsed = 0;
+  let fallSpeedBase = 130;
+  let combo = 0;
+  let comboTimeout = null;
+  let shakeT = 0, shakeMag = 0;
+  let steamSeeds = [];
+
+  const cup = { w: 74, h: 58, x: 0, y: 0, targetX: 0 };
+
+  function resetGame(){
+    score = 0; lives = 3; gameOver = false; combo = 0;
+    items = []; particles = []; spawnTimer = 0; spawnInterval = 950; elapsed = 0; fallSpeedBase = 130;
+    cup.x = W/2 - cup.w/2; cup.targetX = cup.x;
+    cup.y = H - cup.h - 20;
+    steamSeeds = Array.from({length:5}, (_,i) => ({ x: Math.random()*W, delay: i*900, }));
+    updateHUD();
+    comboTag.classList.remove('show');
+  }
+
+  function updateHUD(){
+    scoreVal.textContent = score;
+    livesEls.forEach((el, i) => {
+      el.classList.toggle('lost', i >= lives);
+    });
+  }
+
+  function floatText(text, x, y, color){
+    const el = document.createElement('div');
+    el.className = 'float';
+    el.textContent = text;
+    el.style.left = x + 'px';
+    el.style.top = y + 'px';
+    el.style.color = color;
+    floatWrap.appendChild(el);
+    setTimeout(() => el.remove(), 900);
+  }
+
+  function showCombo(n){
+    comboTag.textContent = `Combo ×${n}`;
+    comboTag.classList.add('show');
+    clearTimeout(comboTimeout);
+    comboTimeout = setTimeout(() => comboTag.classList.remove('show'), 700);
+  }
+
+  function flashRed(){
+    flashEl.style.transition = 'none';
+    flashEl.style.opacity = '0.35';
+    requestAnimationFrame(() => {
+      flashEl.style.transition = 'opacity 0.35s ease';
+      flashEl.style.opacity = '0';
+    });
+  }
+
+  function burst(x, y, color, count){
+    for(let i=0;i<count;i++){
+      const ang = Math.random()*Math.PI*2;
+      const spd = 40 + Math.random()*90;
+      particles.push({
+        x, y,
+        vx: Math.cos(ang)*spd,
+        vy: Math.sin(ang)*spd - 40,
+        life: 1,
+        r: 2 + Math.random()*3,
+        color,
+      });
+    }
+  }
+
+  // ---------- Input ----------
+  function setCupFromClientX(clientX){
+    const rect = canvas.getBoundingClientRect();
+    const x = clientX - rect.left;
+    cup.targetX = Math.max(0, Math.min(W - cup.w, x - cup.w/2));
+  }
+  canvas.addEventListener('mousemove', e => { setCupFromClientX(e.clientX); });
+  canvas.addEventListener('touchstart', e => { setCupFromClientX(e.touches[0].clientX); }, {passive:true});
+  canvas.addEventListener('touchmove', e => { setCupFromClientX(e.touches[0].clientX); }, {passive:true});
+
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    if(['ArrowLeft','ArrowRight'].includes(e.key)) e.preventDefault();
+    keys[e.key] = true;
+  });
+  window.addEventListener('keyup', e => { keys[e.key] = false; });
+
+  // ---------- Spawning ----------
+  function spawnItem(){
+    const isBad = Math.random() < 0.32;
+    const pool = isBad ? BAD : GOOD;
+    const def = pool[Math.floor(Math.random() * pool.length)];
+    const r = def.r;
+    items.push({
+      def, bad: isBad,
+      x: r + Math.random() * (W - r*2),
+      y: -r*2,
+      r,
+      speed: fallSpeedBase + Math.random()*60,
+      rot: Math.random()*0.4 - 0.2,
+      spin: (Math.random()*0.6 - 0.3),
+      bob: Math.random()*Math.PI*2,
+    });
+  }
+
+  // ---------- Drawing ----------
+  function drawBackground(dt){
+    ctx.clearRect(0,0,W,H);
+    const grad = ctx.createLinearGradient(0,0,0,H);
+    grad.addColorStop(0, '#f5efdc');
+    grad.addColorStop(1, '#e6d9b2');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,W,H);
+
+    // paper grain
+    ctx.save();
+    ctx.globalAlpha = 0.045;
+    for(let i=0;i<50;i++){
+      const px = (i * 97) % W;
+      const py = (i * 53) % H;
+      ctx.fillStyle = '#4d6b3f';
+      ctx.beginPath();
+      ctx.arc(px, py, 1.6, 0, Math.PI*2);
+      ctx.fill();
+    }
+    ctx.restore();
+
+    // rising steam wisps
+    ctx.save();
+    steamSeeds.forEach(s => {
+      const t = ((elapsed + s.delay) % 6000) / 6000;
+      const y = H*0.85 - t*H*0.7;
+      const alpha = Math.sin(t*Math.PI) * 0.10;
+      const sway = Math.sin(t*Math.PI*3 + s.x) * 14;
+      ctx.strokeStyle = `rgba(124,154,92,${alpha})`;
+      ctx.lineWidth = 6;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(s.x + sway, y);
+      ctx.quadraticCurveTo(s.x + sway + 10, y - 20, s.x + sway - 6, y - 42);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  function drawCup(){
+    const {x,y,w,h} = cup;
+    ctx.save();
+    let sx = 0;
+    if(shakeT > 0){ sx = (Math.random()-0.5) * shakeMag; shakeT -= 1; }
+    ctx.translate(x + sx, y);
+
+    ctx.save();
+    ctx.globalAlpha = 0.18;
+    ctx.fillStyle = '#2f3a25';
+    ctx.beginPath();
+    ctx.ellipse(w/2, h+8, w*0.42, 7, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    const topW = w, botW = w*0.72, bodyH = h*0.82, topY = h*0.10;
+    ctx.beginPath();
+    ctx.moveTo((w-topW)/2, topY);
+    ctx.lineTo((w+topW)/2, topY);
+    ctx.lineTo((w+botW)/2, topY+bodyH);
+    ctx.lineTo((w-botW)/2, topY+bodyH);
+    ctx.closePath();
+    const cupGrad = ctx.createLinearGradient(0,topY,w,topY+bodyH);
+    cupGrad.addColorStop(0,'#fffdf7');
+    cupGrad.addColorStop(0.5,'#efe6cd');
+    cupGrad.addColorStop(1,'#e2d5ae');
+    ctx.fillStyle = cupGrad;
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(44,51,32,0.28)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // glaze shine streak
+    ctx.save();
+    ctx.globalAlpha = 0.5;
+    ctx.strokeStyle = '#ffffff';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.moveTo(w*0.24, topY+6);
+    ctx.lineTo(w*0.20, topY+bodyH-6);
+    ctx.stroke();
+    ctx.restore();
+
+    // matcha liquid
+    ctx.beginPath();
+    ctx.moveTo((w-topW)/2+3, topY+3);
+    ctx.lineTo((w+topW)/2-3, topY+3);
+    ctx.lineTo((w+topW*0.9)/2-3, topY+15);
+    ctx.lineTo((w-topW*0.9)/2+3, topY+15);
+    ctx.closePath();
+    const liquidGrad = ctx.createLinearGradient(0, topY, 0, topY+15);
+    liquidGrad.addColorStop(0, '#9fbb6f');
+    liquidGrad.addColorStop(1, '#557542');
+    ctx.fillStyle = liquidGrad;
+    ctx.fill();
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.65)';
+    ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.arc(w/2, topY+7, 6, 0.3, Math.PI*1.4);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.ellipse(w/2, topY, topW/2-2, 3.2, 0, 0, Math.PI*2);
+    ctx.strokeStyle = 'rgba(124,154,92,0.6)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    // straw
+    ctx.save();
+    ctx.translate(w*0.68, topY-2);
+    ctx.rotate(-0.12);
+    ctx.fillStyle = '#b55a34';
+    ctx.fillRect(-3, -22, 6, 24);
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
+    ctx.fillRect(-1, -20, 1.4, 20);
+    ctx.restore();
+
+    ctx.restore();
+  }
+
+  function drawItem(it){
+    ctx.save();
+    ctx.translate(it.x, it.y);
+    ctx.rotate(it.rot);
+
+    // halo glow
+    ctx.save();
+    const glow = ctx.createRadialGradient(0,0,0,0,0,it.r*1.6);
+    glow.addColorStop(0, `rgba(${it.def.glow},0.22)`);
+    glow.addColorStop(1, `rgba(${it.def.glow},0)`);
+    ctx.fillStyle = glow;
+    ctx.beginPath();
+    ctx.arc(0,0,it.r*1.6,0,Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.save();
+    ctx.globalAlpha = 0.15;
+    ctx.fillStyle = '#000';
+    ctx.beginPath();
+    ctx.ellipse(0, it.r*0.9, it.r*0.6, it.r*0.22, 0, 0, Math.PI*2);
+    ctx.fill();
+    ctx.restore();
+
+    ctx.font = `${it.r*2}px serif`;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(it.def.glyph, 0, 0);
+    ctx.restore();
+  }
+
+  function drawParticles(dt){
+    for(let i = particles.length - 1; i >= 0; i--){
+      const p = particles[i];
+      p.x += p.vx*dt; p.y += p.vy*dt;
+      p.vy += 160*dt;
+      p.life -= dt*1.6;
+      if(p.life <= 0){ particles.splice(i,1); continue; }
+      ctx.save();
+      ctx.globalAlpha = Math.max(0,p.life);
+      ctx.fillStyle = p.color;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+      ctx.fill();
+      ctx.restore();
+    }
+  }
+
+  // ---------- Game loop ----------
+  let lastT = null;
+  function loop(t){
+    if(!running) return;
+    if(lastT === null) lastT = t;
+    const dt = Math.min((t - lastT)/1000, 0.05);
+    lastT = t;
+    elapsed += dt*1000;
+
+    if(keys['ArrowLeft']) cup.targetX = Math.max(0, cup.targetX - 6);
+    if(keys['ArrowRight']) cup.targetX = Math.min(W - cup.w, cup.targetX + 6);
+    cup.x += (cup.targetX - cup.x) * Math.min(1, dt*14);
+    cup.y = H - cup.h - 20;
+
+    fallSpeedBase = 130 + Math.min(180, elapsed/1000 * 6);
+    spawnInterval = Math.max(420, 950 - elapsed/1000 * 10);
+
+    spawnTimer += dt*1000;
+    if(spawnTimer > spawnInterval){
+      spawnTimer = 0;
+      spawnItem();
+    }
+
+    drawBackground(dt);
+
+    for(let i = items.length - 1; i >= 0; i--){
+      const it = items[i];
+      it.y += it.speed * dt;
+      it.rot += it.spin * dt;
+      drawItem(it);
+
+      const cupMouthY = cup.y + cup.h*0.10;
+      const cupLeft = cup.x + cup.w*0.14;
+      const cupRight = cup.x + cup.w*0.86;
+      if(it.y + it.r*0.3 >= cupMouthY && it.y - it.r*0.3 <= cupMouthY + 26 &&
+         it.x >= cupLeft && it.x <= cupRight){
+        if(it.bad){
+          lives -= 1;
+          combo = 0;
+          floatText('✕ ' + it.def.key, it.x, cup.y - 10, '#a83f2b');
+          burst(it.x, cup.y, '#a83f2b', 10);
+          shakeT = 10; shakeMag = 6;
+          flashRed();
+        } else {
+          score += it.def.pts;
+          combo += 1;
+          floatText('+' + it.def.pts, it.x, cup.y - 10, '#4d6b3f');
+          burst(it.x, cup.y, '#7c9a5c', 8);
+          if(combo >= 3) showCombo(combo);
+        }
+        updateHUD();
+        items.splice(i,1);
+        if(lives <= 0){ endGame(); }
+        continue;
+      }
+
+      if(it.y - it.r > H + 10){
+        items.splice(i,1);
+      }
+    }
+
+    drawParticles(dt);
+    drawCup();
+
+    if(!gameOver) requestAnimationFrame(loop);
+  }
+
+  function endGame(){
+    running = false; gameOver = true;
+    overlay.classList.remove('hidden');
+    overlay.innerHTML = `
+      <div class="overlay-card">
+        <div class="kicker">The Cup Is Full</div>
+        <h1>Well Brewed</h1>
+        <div id="finalScoreWrap">
+          <div id="finalScore">${score}</div>
+          <div id="finalScoreLabel">Final Score</div>
+        </div>
+        <button id="restartBtn">Brew Again</button>
+      </div>
+    `;
+    document.getElementById('restartBtn').addEventListener('click', startGame);
+  }
+
+  function startGame(){
+    overlay.classList.add('hidden');
+    resize();
+    resetGame();
+    running = true; gameOver = false; lastT = null;
+    requestAnimationFrame(loop);
+  }
+
+  startBtn.addEventListener('click', startGame);
+
+  resize();
+  cup.x = W/2 - cup.w/2; cup.y = H - cup.h - 20; cup.targetX = cup.x;
+  steamSeeds = Array.from({length:5}, (_,i) => ({ x: Math.random()*W, delay: i*900 }));
+  drawBackground(0);
+  drawCup();
+})();
+</script>
+</body>
+</html>
